@@ -1,0 +1,7 @@
+# Data used for training the clustering
+data_split: test
+data_portion: 1.0
+
+# Clustering algorithm configuration:
+covering_algo_name: kmeans
+n_clusters: 50

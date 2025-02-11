@@ -3,3 +3,6 @@ data/*
 */__pycache__
 */*/__pycache__
 cached_retrieval_evals/msmarco-train-concepts_1.0_snowflake-arctic-embed-m_cos_sim.json
+wandb/
+outputs/
+results/

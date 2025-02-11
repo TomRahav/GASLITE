@@ -107,6 +107,7 @@ def load_cached_eval(
 ):
     """Returns the cached results, on None if not found."""
     if load_from_hf:
+        print("a")
         # Download the relevant results file
         from huggingface_hub import hf_hub_download
         filename = _get_cached_eval_name(dataset_name, data_split, data_portion, model_hf_name, sim_func_name)

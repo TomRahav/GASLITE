@@ -5,7 +5,7 @@
 # Explanation: the concept promotable content and query ids from MSMARCO are kept in the `config/cover_alg/*` folder.
 
 DATASET=msmarco-train-concepts
-MODEL=sentence-transformers/all-MiniLM-L6-v2
+MODEL=Snowflake/snowflake-arctic-embed-m #sentence-transformers/all-MiniLM-L6-v2
 SIM_FUNC=cos_sim
 
 # Target choice:

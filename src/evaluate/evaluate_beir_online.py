@@ -334,6 +334,7 @@ def get_result_list_for_query(
     if adv_passage_texts is not None:
         adv_p_emb = model.embed(texts=adv_passage_texts)
     elif adv_passage_toks is not None:
+        adv_passage_texts = [model.tokenizer.decode(tok, add_special_tokens=False) for tok in adv_passage_toks]
         # otherwise, embed the given `adv_passage_toks` and use them as centroids
         # first - prepare `input_ids` and `attention_mask` from the `centroid_real_toks`, then embed them
         max_length = max(
@@ -353,7 +354,6 @@ def get_result_list_for_query(
         adv_p_emb = model.embed(
             inputs=dict(input_ids=input_ids.cuda(), attention_mask=attention_mask.cuda())
         )
-    print(adv_p_emb)
     if model.sim_func_name == "cos_sim":
         adv_sim_scores = torch.nn.functional.cosine_similarity(query_emb, adv_p_emb)
     elif model.sim_func_name == "dot":
