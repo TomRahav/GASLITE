@@ -153,7 +153,7 @@ def attack_ret(
 
     # deep copy the original inputs
     P_adv_orig = P_adv_before["input_ids"]
-a
+
     # Execute the attack
     best_input_ids, out_metrics = gaslite_attack(
         model=model,
@@ -177,6 +177,7 @@ a
         l2_alpha=l2_alpha,
         emb_targets=emb_targets.cuda(),
         emb_anchors=model.embed(texts=Pgold).cuda(),
+        chunk_robustness_method=kwargs["chunk_robustness_method"],
     )
 
     P_adv["input_ids"] = best_input_ids
@@ -528,6 +529,7 @@ def evaluate_attack(
     model_hf_name: str = "sentence-transformers/multi-qa-mpnet-base-dot-v1",
     centroid_vec: torch.Tensor = None,
     best_flu_instance_text: str = None,
+    **kwargs,
 ) -> Dict[str, Any]:
     logger.info(f"Evaluating queries ids: {attacked_qids}")
 
@@ -633,19 +635,27 @@ def evaluate_attack(
         "input_ids": adv_toks_after_attack_pt,
         "attention_mask": torch.ones_like(adv_toks_after_attack_pt).cuda(),
     }
-    emb_adv_tokens_list_after_attack = (
-        model.embed(inputs=adv_toks_after_attack_pt_input).squeeze(0).cuda()
-    )
-    metrics.update(
-        full_evaluation_with_adv_passage_vecs(
-            adv_passage_vecs=[emb_adv_tokens_list_after_attack],
-            attacked_qrels=attacked_qrels,
-            results=results,
-            qid_to_emb=qid_to_emb,
-            sim_func_name=sim_func_name,
-            metrics_suffix="__tokens_list__after_attack",
+    iterations = 1
+    if kwargs["test_chunking"]:
+        loc = kwargs["test_chunking"]
+        iterations = kwargs["trigger_len"]
+    for i in range(0, iterations, 1):
+        emb_adv_tokens_list_after_attack = get_tokenized_sliced_sentence(
+            adv_toks_after_attack_pt_input, i, loc, trigger_len
         )
-    )
+        emb_adv_tokens_list_after_attack = (
+            model.embed(inputs=adv_toks_after_attack_pt_input).squeeze(0).cuda()
+        )
+        metrics.update(
+            full_evaluation_with_adv_passage_vecs(
+                adv_passage_vecs=[emb_adv_tokens_list_after_attack],
+                attacked_qrels=attacked_qrels,
+                results=results,
+                qid_to_emb=qid_to_emb,
+                sim_func_name=sim_func_name,
+                metrics_suffix="__tokens_list__after_attack_{i}_tokens_sliced_from_{loc}",
+            )
+        )
 
     # AFTER ATTACK WITH THE HIGHEST FLU TEXT:
     if best_flu_instance_text is not None:

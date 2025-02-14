@@ -27,7 +27,8 @@ for concept in "${concepts[@]}"; do
           "model.model_hf_name=${MODEL}" dataset=${DATASET} core_objective=single-query \
           batch_size=${BATCH_SIZE} "random_seed=${RANDOM_SEED}" exp_tag=exp0_knows-all \
           "cover_alg=concept-test-${concept}" ++constraints.trigger_len=${trigger_len} \
-          ++mal_info_length=${mal_info_length} ++chunk_robustness_method=${method}
+          ++mal_info_length=${mal_info_length} ++chunk_robustness_method=${method} \
+          ++attack.attack_n_iter=30
       done
     done
   done

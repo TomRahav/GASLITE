@@ -22,7 +22,8 @@
                 "cover_alg=concept-test-potter",
                 "++constraints.trigger_len=10",
                 "++mal_info_length=short",
-                "++chunk_robustness_method='reguler'"
+                "++chunk_robustness_method='reguler'",
+                "attack.attack_n_iter=2"
             ],
             "console": "integratedTerminal",
         }
