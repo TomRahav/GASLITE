@@ -22,7 +22,7 @@
                 "cover_alg=concept-test-potter",
                 "++constraints.trigger_len=10",
                 "++mal_info_length=medium",
-                "++chunk_robustness_method=monte_carlo",
+                "++chunk_robustness_method=avg_loss",
                 "attack.attack_n_iter=3",
                 "attack.beam_search_config.n_flip=500",
                 "++test_chunking=end",

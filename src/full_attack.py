@@ -645,11 +645,14 @@ def evaluate_attack(
         loc = kwargs["test_chunking"]
         iterations = kwargs["trigger_len"]
     for i in range(0, iterations, 1):
-        emb_adv_tokens_list_after_attack = get_tokenized_sliced_sentence(
-            adv_toks_after_attack_pt_input, i, loc, iterations
-        )
+        adv_toks_after_attack_pt_input_sliced = {
+            "input_ids": get_tokenized_sliced_sentence(
+                adv_toks_after_attack_pt_input, i, loc, iterations
+            ),
+            "attention_mask": adv_toks_after_attack_pt_input["attention_mask"],
+        }
         emb_adv_tokens_list_after_attack = (
-            model.embed(inputs=emb_adv_tokens_list_after_attack).squeeze(0).cuda()
+            model.embed(inputs=adv_toks_after_attack_pt_input_sliced).squeeze(0).cuda()
         )
         metrics.update(
             full_evaluation_with_adv_passage_vecs(

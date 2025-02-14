@@ -29,6 +29,8 @@ def token_gradients(
     if kwargs["chunk_robustness_method"] == "avg_loss":
         iterations = trigger_len
     for i in range(iterations):
+        # Clear memory from previous iteration
+        torch.cuda.empty_cache()
         trigger_slice = slice(trigger_slice.start, original_stop - i)
         embed_weights = input_embedding_layer.weight
         one_hot = torch.zeros(
@@ -72,7 +74,7 @@ def token_gradients(
             inputs_embeds=full_embeds,
             inputs_attention_mask=inputs["attention_mask"],
             **kwargs,
-        )
+        ) / (i + 1)
     if flu_alpha != 0 and flu_model is not None:
         # Calculate the fluency score
         fluency_score = flu_model.calc_score_for_grad(
