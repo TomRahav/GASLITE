@@ -43,7 +43,6 @@ def gaslite_attack(
     n_sim_tokens_flips_to_gen: float = 100,  # number of candidates to be chosen by the similarity of the tokens [# POSITIVE -> # of sim-based candidates to add, NEGATIVE -> # of sim-based candidates per-token to consider when filtering the EXISTING grad-based candidates]
     gradual_batch_optimization: bool = False,
     perform_arca_opt: bool = False,  # whether to perform ARCA optimization (instead of the default GCG)
-    monte_carlo: bool = False,  # Whether we do monte carlo on the trigger optimization step
     checkpoint_every_n: int = 0,  # save the best_input_ids each n iterations
     return_last: bool = True,
     **kwargs,  # additional kwargs to pass to the model for calculating the loss (e.g., labels)
@@ -104,7 +103,7 @@ def gaslite_attack(
         best_loss = torch.tensor(-1)
     else:
         for i in trange(n_iter, desc="Attacking with GASLITE..."):
-            if monte_carlo:
+            if kwargs["chunk_robustness_method"] == "monte_carlo":
                 stop_index = random.randint(
                     trigger_slice.start + 1, trigger_slice.start + trigger_len
                 )
@@ -160,7 +159,6 @@ def gaslite_attack(
             else:
                 grad_inputs = inputs
                 grad_kwargs = kwargs
-
             # 1. Get the gradients wrp to the input
             onehot_grads = _token_gradients_batch(
                 model=model,
@@ -611,7 +609,7 @@ def gaslite_attack(
         )
     )
     final_metrics.update({"loss": best_loss.item()})
-    if monte_carlo:
+    if kwargs["chunk_robustness_method"] == "monte_carlo":
         print("Final Monte Carlo Indexes", monte_carlo_indexes)
     if not checkpoint_every_n:
         best_input_ids_dict[n_iter] = best_input_ids

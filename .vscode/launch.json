@@ -1,0 +1,30 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: hydra_entrypoint",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "/home/tom.rahav/miniconda3/envs/gaslite/bin/python",
+            "program": "${workspaceFolder}/hydra_entrypoint.py",
+            "args": [
+                "--config-name", "default",
+                "model.sim_func_name=cos_sim",
+                "model.model_hf_name=Snowflake/snowflake-arctic-embed-m",
+                "dataset=msmarco-train-concepts",
+                "core_objective=single-query",
+                "batch_size=2048",
+                "random_seed=0",
+                "exp_tag=exp0_knows-all",
+                "cover_alg=concept-test-potter",
+                "++constraints.trigger_len=10",
+                "++mal_info_length=short",
+                "++chunk_robustness_method='reguler'"
+            ],
+            "console": "integratedTerminal",
+        }
+    ]
+}
