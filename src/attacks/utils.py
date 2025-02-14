@@ -22,50 +22,57 @@ def token_gradients(
     [Inspired by: https://github.com/llm-attacks/llm-attacks/blob/main/llm_attacks/gcg/gcg_attack.py#L12C8-L12C8]
     """
     input_ids = inputs["input_ids"]
-
-    embed_weights = input_embedding_layer.weight
-    one_hot = torch.zeros(
-        input_ids.shape[0],  # batch_size
-        input_ids[:, trigger_slice].shape[1],  # targeted_sub_seq_len
-        embed_weights.shape[0],  # vocab_size
-        device=device,
-        dtype=embed_weights.dtype,
-    )
-    one_hot.scatter_(
-        -1,
-        input_ids[:, trigger_slice].unsqueeze(-1),
-        torch.ones(
-            one_hot.shape[0],
-            one_hot.shape[1],
-            1,
+    loss = 0
+    iterations = 1
+    original_stop = trigger_slice.stop
+    trigger_len = trigger_slice.stop - trigger_slice.start
+    if kwargs["chunk_robustness_method"] == "avg_loss":
+        iterations = trigger_len
+    for i in range(iterations):
+        trigger_slice = slice(trigger_slice.start, original_stop - i)
+        embed_weights = input_embedding_layer.weight
+        one_hot = torch.zeros(
+            input_ids.shape[0],  # batch_size
+            input_ids[:, trigger_slice].shape[1],  # targeted_sub_seq_len
+            embed_weights.shape[0],  # vocab_size
             device=device,
             dtype=embed_weights.dtype,
-        ),
-    )
+        )
+        one_hot.scatter_(
+            -1,
+            input_ids[:, trigger_slice].unsqueeze(-1),
+            torch.ones(
+                one_hot.shape[0],
+                one_hot.shape[1],
+                1,
+                device=device,
+                dtype=embed_weights.dtype,
+            ),
+        )
 
-    one_hot.requires_grad_()
-    trigger_embeds = (
-        one_hot @ embed_weights
-    )  # (batch_size, targeted_sub_seq_len, embed_dim)
+        one_hot.requires_grad_()
+        trigger_embeds = (
+            one_hot @ embed_weights
+        )  # (batch_size, targeted_sub_seq_len, embed_dim)
 
-    # now stitch it together with the rest of the embeddings
-    embeds = input_embedding_layer(
-        input_ids
-    ).detach()  # (batch_size, seq_len, embed_dim)
-    full_embeds = torch.cat(
-        [
-            embeds[:, : trigger_slice.start, :],
-            trigger_embeds,
-            embeds[:, trigger_slice.stop :, :],
-        ],
-        dim=1,
-    )
+        # now stitch it together with the rest of the embeddings
+        embeds = input_embedding_layer(
+            input_ids
+        ).detach()  # (batch_size, seq_len, embed_dim)
+        full_embeds = torch.cat(
+            [
+                embeds[:, : trigger_slice.start, :],
+                trigger_embeds,
+                embeds[:, trigger_slice.stop :, :],
+            ],
+            dim=1,
+        )
 
-    loss = model.calc_loss_for_grad(
-        inputs_embeds=full_embeds,
-        inputs_attention_mask=inputs["attention_mask"],
-        **kwargs,
-    )
+        loss += model.calc_loss_for_grad(
+            inputs_embeds=full_embeds,
+            inputs_attention_mask=inputs["attention_mask"],
+            **kwargs,
+        )
     if flu_alpha != 0 and flu_model is not None:
         # Calculate the fluency score
         fluency_score = flu_model.calc_score_for_grad(
@@ -135,3 +142,37 @@ def get_trigger_candidates(
     else:
         raise ValueError(f"Unknown candidate scheme: {candidate_scheme}")
     return candidates
+
+
+def get_tokenized_sliced_sentence(tokenized, i, slice_order, trigger_len):
+    input_ids = tokenized["input_ids"]
+    attention_mask = tokenized["attention_mask"]
+    # Identify the length of the valid tokens (excluding padding)
+    valid_token_count = attention_mask.sum(dim=1).item()
+
+    # Ensure we only truncate from the valid tokens
+    if valid_token_count > i:
+        eos = input_ids[:, valid_token_count - 1 : valid_token_count]
+        info_len = valid_token_count - trigger_len
+        info_input_ids = input_ids[:, :info_len]
+        # Truncate valid tokens
+        if slice_order == "end":
+            truncated_input_ids = input_ids[:, : valid_token_count - i - 1]
+            truncated_input_ids = torch.cat((truncated_input_ids, eos), dim=1)
+        elif slice_order == "start":
+            truncated_trigger = input_ids[:, info_len + i :]
+            truncated_input_ids = torch.cat((info_input_ids, truncated_trigger), dim=1)
+        elif slice_order == "shuffle":
+            shuffeled_trigger = input_ids[:, info_len + i :]
+            # Shuffle along the last dimension (columns) for each row
+            indices = torch.stack(
+                [
+                    torch.randperm(shuffeled_trigger.shape[1])
+                    for _ in range(shuffeled_trigger.shape[0])
+                ]
+            )
+            shuffled_input_ids = torch.gather(input_ids, dim=1, index=indices)
+            truncated_input_ids = torch.cat(
+                (info_input_ids, shuffled_input_ids, eos), dim=1
+            )
+    return truncated_input_ids

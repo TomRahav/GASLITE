@@ -45,8 +45,7 @@ def gaslite_attack(
     perform_arca_opt: bool = False,  # whether to perform ARCA optimization (instead of the default GCG)
     checkpoint_every_n: int = 0,  # save the best_input_ids each n iterations
     return_last: bool = True,
-    chunk_robustness_method: str = None,
-    ** kwargs,  # additional kwargs to pass to the model for calculating the loss (e.g., labels)
+    **kwargs,  # additional kwargs to pass to the model for calculating the loss (e.g., labels)
 ):
     logger.info(f"params: {locals()}")
 
@@ -104,7 +103,10 @@ def gaslite_attack(
         best_loss = torch.tensor(-1)
     else:
         for i in trange(n_iter, desc="Attacking with GASLITE..."):
-            if chunk_robustness_method == "monte_carlo":
+            if (
+                "chunk_robustness_method" in kwargs
+                and kwargs["chunk_robustness_method"] == "monte_carlo"
+            ):
                 stop_index = random.randint(
                     trigger_slice.start + 1, trigger_slice.start + trigger_len
                 )
@@ -160,6 +162,10 @@ def gaslite_attack(
             else:
                 grad_inputs = inputs
                 grad_kwargs = kwargs
+            if "chunk_robustness_method" in kwargs:
+                grad_kwargs["chunk_robustness_method"] = kwargs[
+                    "chunk_robustness_method"
+                ]
             # 1. Get the gradients wrp to the input
             onehot_grads = _token_gradients_batch(
                 model=model,
@@ -610,7 +616,7 @@ def gaslite_attack(
         )
     )
     final_metrics.update({"loss": best_loss.item()})
-    if chunk_robustness_method == "monte_carlo":
+    if "chunk_robustness_method" in kwargs and kwargs["chunk_robustness_method"]:
         print("Final Monte Carlo Indexes", monte_carlo_indexes)
     if not checkpoint_every_n:
         best_input_ids_dict[n_iter] = best_input_ids

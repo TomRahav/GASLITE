@@ -19,6 +19,3 @@ beam_search_config:
 perform_arca_opt: False
 n_sim_tokens_flips_to_gen: 0  # POSITIVE -> # of sim-based candidates to add, NEGATIVE -> # of sim-based candidates per-token to consider when filtering the EXISTING grad-based candidates
 use_rephraser: False
-
-
-

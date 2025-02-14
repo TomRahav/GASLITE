@@ -11,7 +11,7 @@ BATCH_SIZE=2048
 COVER_ALG=kmeans-test
 
 # Define an array of concepts
-concepts=("potter"  "flower")
+concepts=("potter"  "flower" "vaccine")
 methods=("reguler" "monte_carlo" "avg_loss")
 mal_info_lengths=("short" "medium" "long")
 trigger_lens=(10 20 30)
@@ -28,7 +28,7 @@ for concept in "${concepts[@]}"; do
           batch_size=${BATCH_SIZE} "random_seed=${RANDOM_SEED}" exp_tag=exp0_knows-all \
           "cover_alg=concept-test-${concept}" ++constraints.trigger_len=${trigger_len} \
           ++mal_info_length=${mal_info_length} ++chunk_robustness_method=${method} \
-          ++attack.attack_n_iter=30
+          ++attack.attack_n_iter=30 attack.beam_search_config.n_flip=500 ++test_chunking=end
       done
     done
   done

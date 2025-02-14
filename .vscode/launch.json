@@ -21,9 +21,11 @@
                 "exp_tag=exp0_knows-all",
                 "cover_alg=concept-test-potter",
                 "++constraints.trigger_len=10",
-                "++mal_info_length=short",
-                "++chunk_robustness_method='reguler'",
-                "attack.attack_n_iter=2"
+                "++mal_info_length=medium",
+                "++chunk_robustness_method=monte_carlo",
+                "attack.attack_n_iter=3",
+                "attack.beam_search_config.n_flip=500",
+                "++test_chunking=end",
             ],
             "console": "integratedTerminal",
         }

@@ -4,6 +4,7 @@ import random
 import numpy as np
 from huggingface_hub.utils import EntryNotFoundError
 
+from src.attacks.utils import get_tokenized_sliced_sentence
 from src import data_utils
 from src.attacks.gaslite import gaslite_attack
 from src.covering.covering import CoverAlgorithm
@@ -240,7 +241,10 @@ def attack_ret(
         )
         # if evaluate_flips_on_strs:  # under this mode, the attack should have discard such flips
         #     raise AssertionError
-
+    test_chunk_dict = {}
+    if "test_chunking" in kwargs:
+        test_chunk_dict["test_chunking"] = kwargs["test_chunking"]
+        test_chunk_dict["trigger_len"] = trigger_len
     # Evaluate
     metrics = evaluate_attack(
         model=model,
@@ -256,6 +260,7 @@ def attack_ret(
         model_hf_name=model_hf_name,
         centroid_vec=centroid_vec,
         best_flu_instance_text=out_metrics.get("best_flu_instance_text", None),
+        **test_chunk_dict,
     )
     metrics.update(out_metrics)
 
@@ -641,10 +646,10 @@ def evaluate_attack(
         iterations = kwargs["trigger_len"]
     for i in range(0, iterations, 1):
         emb_adv_tokens_list_after_attack = get_tokenized_sliced_sentence(
-            adv_toks_after_attack_pt_input, i, loc, trigger_len
+            adv_toks_after_attack_pt_input, i, loc, iterations
         )
         emb_adv_tokens_list_after_attack = (
-            model.embed(inputs=adv_toks_after_attack_pt_input).squeeze(0).cuda()
+            model.embed(inputs=emb_adv_tokens_list_after_attack).squeeze(0).cuda()
         )
         metrics.update(
             full_evaluation_with_adv_passage_vecs(
@@ -653,7 +658,7 @@ def evaluate_attack(
                 results=results,
                 qid_to_emb=qid_to_emb,
                 sim_func_name=sim_func_name,
-                metrics_suffix="__tokens_list__after_attack_{i}_tokens_sliced_from_{loc}",
+                metrics_suffix=f"__tokens_list__after_attack_{i}_tokens_sliced_from_{loc}",
             )
         )
 
