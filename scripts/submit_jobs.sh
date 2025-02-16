@@ -2,7 +2,7 @@
 
 # Define arrays of parameters
 concepts=("potter"  "flower" "vaccine")
-methods=("reguler")
+methods=("reguler" "monte_carlo")
 mal_info_lengths=("short" "medium" "long")
 trigger_lens=(10 20 30)
 attack_n_iter=100
