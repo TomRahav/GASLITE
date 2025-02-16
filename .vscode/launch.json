@@ -18,7 +18,7 @@
                 "core_objective=single-query",
                 "batch_size=2048",
                 "random_seed=0",
-                "exp_tag=exp0_knows-all",
+                "exp_tag=two one three",
                 "cover_alg=concept-test-potter",
                 "++constraints.trigger_len=10",
                 "++mal_info_length=medium",

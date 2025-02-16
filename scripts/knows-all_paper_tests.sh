@@ -12,7 +12,7 @@ COVER_ALG=kmeans-test
 
 # Define an array of concepts
 concepts=("potter"  "flower" "vaccine")
-methods=("reguler" "monte_carlo" "avg_loss")
+methods=("reguler" "monte_carlo")
 mal_info_lengths=("short" "medium" "long")
 trigger_lens=(10 20 30)
 
@@ -25,10 +25,11 @@ for concept in "${concepts[@]}"; do
       for trigger_len in "${trigger_lens[@]}"; do
         python hydra_entrypoint.py --config-name default model.sim_func_name=${SIM_FUNC} \
           "model.model_hf_name=${MODEL}" dataset=${DATASET} core_objective=single-query \
-          batch_size=${BATCH_SIZE} "random_seed=${RANDOM_SEED}" exp_tag=exp0_knows-all \
+          batch_size=${BATCH_SIZE} "random_seed=${RANDOM_SEED}" \
           "cover_alg=concept-test-${concept}" ++constraints.trigger_len=${trigger_len} \
           ++mal_info_length=${mal_info_length} ++chunk_robustness_method=${method} \
-          ++attack.attack_n_iter=30 attack.beam_search_config.n_flip=500 ++test_chunking=end
+          ++attack.attack_n_iter=30 attack.beam_search_config.n_flip=500 ++test_chunking=end \
+          exp_tag=f"exp0_malinfo-${mal_info_length}_robustness-${chunk_robustness_method}_concept-${concept}_triggerlen-${trigger_len}"
       done
     done
   done

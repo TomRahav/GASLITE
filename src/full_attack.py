@@ -1,6 +1,6 @@
 import json
 import random
-
+import wandb
 import numpy as np
 from huggingface_hub.utils import EntryNotFoundError
 
@@ -654,16 +654,16 @@ def evaluate_attack(
         emb_adv_tokens_list_after_attack = (
             model.embed(inputs=adv_toks_after_attack_pt_input_sliced).squeeze(0).cuda()
         )
-        metrics.update(
-            full_evaluation_with_adv_passage_vecs(
-                adv_passage_vecs=[emb_adv_tokens_list_after_attack],
-                attacked_qrels=attacked_qrels,
-                results=results,
-                qid_to_emb=qid_to_emb,
-                sim_func_name=sim_func_name,
-                metrics_suffix=f"__tokens_list__after_attack_{i}_tokens_sliced_from_{loc}",
-            )
+        metrics_dict = full_evaluation_with_adv_passage_vecs(
+            adv_passage_vecs=[emb_adv_tokens_list_after_attack],
+            attacked_qrels=attacked_qrels,
+            results=results,
+            qid_to_emb=qid_to_emb,
+            sim_func_name=sim_func_name,
+            metrics_suffix=f"__tokens_list__after_attack_tokens_sliced_from_{loc}",
         )
+        metrics.update(metrics_dict)
+        wandb.log(metrics_dict)
 
     # AFTER ATTACK WITH THE HIGHEST FLU TEXT:
     if best_flu_instance_text is not None:

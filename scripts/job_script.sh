@@ -1,20 +1,19 @@
 #!/bin/bash
 #SBATCH --job-name=GASLITE_Attack
-#SBATCH --output=logs/output_%j.txt    # Standard output
-#SBATCH --error=logs/error_%j.txt      # Standard error
+#SBATCH --output=logs/job_%j.txt    # Standard output
+#SBATCH --error=logs/job_%j.txt      # Standard error
 #SBATCH --time=01:00:00                # Time limit hrs:min:sec
 #SBATCH --ntasks=1                     # Number of tasks
-#SBATCH --cpus-per-task=8              # Number of CPU cores per task
-#SBATCH --gres=gpu:A40:1               # Request 1 GPU of type A40
+#SBATCH -c 8                      # number of cores (treats)
+#SBATCH --gres=gpu:A40:1          # Request 1 gpu type A40
 #SBATCH --mail-user=tom.rahav@campus.technion.ac.il
-#SBATCH --mail-type=ALL                # Send email on all events
+#SBATCH --mail-type=NONE                # Send email on all events
 
 # Load necessary modules
-# module purge
-# module load matlab/R2023a
-
+source /home/tom.rahav/miniconda3/etc/profile.d/conda.sh
+export WAND_API_KEY=a8edcfc5767b7efdd613b561c389b6951eee54e7
 # Activate conda environment
-source activate gaslite
+conda activate gaslite
 
 # Set constant parameters
 DATASET=msmarco-train-concepts
@@ -31,11 +30,12 @@ python hydra_entrypoint.py --config-name default \
   core_objective=single-query \
   batch_size=${BATCH_SIZE} \
   random_seed=${RANDOM_SEED} \
-  exp_tag=exp0_knows-all \
   cover_alg=concept-test-${CONCEPT} \
   ++constraints.trigger_len=${TRIGGER_LEN} \
   ++mal_info_length=${MAL_INFO_LENGTH} \
   ++chunk_robustness_method=${METHOD} \
-  ++attack.attack_n_iter=30 \
+  ++attack.attack_n_iter=${ATTACK_N_ITER} \
   attack.beam_search_config.n_flip=500 \
-  ++test_chunking=end
+  ++test_chunking=end \
+  exp_tag="[exp-test, malinfo-${MAL_INFO_LENGTH}, robustness-${METHOD}, concept-${CONCEPT}, triggerlen-${TRIGGER_LEN}, attack_n_iter-${ATTACK_N_ITER}]"
+

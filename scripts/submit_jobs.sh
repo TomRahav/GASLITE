@@ -1,10 +1,11 @@
 #!/bin/bash
 
 # Define arrays of parameters
-concepts=("vaccine")
+concepts=("potter"  "flower" "vaccine")
 methods=("reguler")
-mal_info_lengths=("short")
-trigger_lens=(10)
+mal_info_lengths=("short" "medium" "long")
+trigger_lens=(10 20 30)
+attack_n_iter=100
 
 # Iterate over each combination of parameters
 for concept in "${concepts[@]}"; do
@@ -12,7 +13,7 @@ for concept in "${concepts[@]}"; do
     for method in "${methods[@]}"; do
       for trigger_len in "${trigger_lens[@]}"; do
         # Submit the job with the current set of parameters
-        sbatch --export=CONCEPT="$concept",MAL_INFO_LENGTH="$mal_info_length",METHOD="$method",TRIGGER_LEN="$trigger_len" scripts/job_script.sh
+        sbatch --export=CONCEPT="$concept",MAL_INFO_LENGTH="$mal_info_length",METHOD="$method",TRIGGER_LEN="$trigger_len",ATTACK_N_ITER="$attack_n_iter" scripts/job_script.sh
         sleep 1 # Brief pause to be kind to the scheduler
       done
     done

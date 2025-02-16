@@ -42,7 +42,7 @@ def run_attack(cfg: DictConfig) -> None:
         project="attack-retrieval-prel-research",
         name=_get_exp_name(cfg),
         config=cfg,
-        tags=[cfg["exp_tag"]],
+        tags=cfg["exp_tag"] if type(cfg["exp_tag"]) is list else [cfg["exp_tag"]],
         **wandb_kwargs,
     )
 
@@ -116,7 +116,7 @@ def _get_result_path(cfg):
         query_choice += f"___{cfg['cluster_idx']}"
     return os.path.join(
         "results",
-        f"results__{_get_exp_name(cfg)}__{query_choice}_{cfg['test_chunking']}_{cfg['mal_info_length']}_{cfg['chunk_robustness_method']}.json",
+        f"results__{_get_exp_name(cfg)}__{query_choice}_{cfg['test_chunking']}_{cfg['mal_info_length']}_{cfg['chunk_robustness_method']}_{cfg['attack_n_iter']}.json",
     )
 
 
