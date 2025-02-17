@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Define arrays of parameters
-concepts=("potter"  "flower" "vaccine")
+# Define arrays of parameters "potter"  "flower" "vaccine" "boston" "golf" 
+concepts=("iphone" "mortgage" "sanwich")
 methods=("reguler" "monte_carlo")
 mal_info_lengths=("short" "medium" "long")
 trigger_lens=(10 20 30)
