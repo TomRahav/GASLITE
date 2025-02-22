@@ -16,83 +16,95 @@ def token_gradients(
     **kwargs,  # additional kwargs to pass to the model for calculating the loss (e.g., labels)
 ):
     """
-    :returns: the gradients wrp to the input (one-hot embedded) tokens in the `trigger_slice` (i.e. the targeted
-             sub-sequence).
-             The gradient is calculated on the original loss (e.g., Cross Entropy), and towards decreasing it.
-    [Inspired by: https://github.com/llm-attacks/llm-attacks/blob/main/llm_attacks/gcg/gcg_attack.py#L12C8-L12C8]
+    Returns the gradient with respect to the one-hot trigger tokens in `trigger_slice`,
+    computed in a memory-efficient way using torch.autograd.grad so that only the one_hot
+    gradients are kept in memory. The fluency and L2 penalty terms are added in every iteration.
     """
     input_ids = inputs["input_ids"]
-    loss = 0
-    iterations = 1
     original_stop = trigger_slice.stop
-    trigger_len = trigger_slice.stop - trigger_slice.start
-    if kwargs["chunk_robustness_method"] == "avg_loss":
-        iterations = trigger_len
+    trigger_len = original_stop - trigger_slice.start
+    iterations = (
+        trigger_len if kwargs.get("chunk_robustness_method", None) == "avg_loss" else 1
+    )
+
+    grad_accum = None  # will accumulate per-iteration gradients
+
     for i in range(iterations):
-        # Clear memory from previous iteration
         torch.cuda.empty_cache()
-        trigger_slice = slice(trigger_slice.start, original_stop - i)
+        current_slice = slice(trigger_slice.start, original_stop - i)
+        current_trigger_len = trigger_len - i
         embed_weights = input_embedding_layer.weight
+        targeted_seq_len = input_ids[:, current_slice].shape[1]
         one_hot = torch.zeros(
             input_ids.shape[0],  # batch_size
-            input_ids[:, trigger_slice].shape[1],  # targeted_sub_seq_len
+            targeted_seq_len,  # length of targeted subsequence
             embed_weights.shape[0],  # vocab_size
             device=device,
             dtype=embed_weights.dtype,
         )
         one_hot.scatter_(
             -1,
-            input_ids[:, trigger_slice].unsqueeze(-1),
-            torch.ones(
-                one_hot.shape[0],
-                one_hot.shape[1],
-                1,
-                device=device,
-                dtype=embed_weights.dtype,
-            ),
+            input_ids[:, current_slice].unsqueeze(-1),
+            1.0,
         )
-
         one_hot.requires_grad_()
+        # Compute trigger embeddings using the one-hot representation.
         trigger_embeds = (
             one_hot @ embed_weights
-        )  # (batch_size, targeted_sub_seq_len, embed_dim)
-
-        # now stitch it together with the rest of the embeddings
-        embeds = input_embedding_layer(
-            input_ids
-        ).detach()  # (batch_size, seq_len, embed_dim)
+        )  # (batch_size, targeted_seq_len, embed_dim)
+        embeds = input_embedding_layer(input_ids).detach()
         full_embeds = torch.cat(
             [
                 embeds[:, : trigger_slice.start, :],
                 trigger_embeds,
-                embeds[:, trigger_slice.stop :, :],
+                embeds[:, current_slice.stop :, :],
             ],
             dim=1,
         )
 
-        loss += model.calc_loss_for_grad(
+        # Calculate the base loss from the model.
+        loss = model.calc_loss_for_grad(
             inputs_embeds=full_embeds,
             inputs_attention_mask=inputs["attention_mask"],
             **kwargs,
-        ) / (i + 1)
-    if flu_alpha != 0 and flu_model is not None:
-        # Calculate the fluency score
-        fluency_score = flu_model.calc_score_for_grad(
-            one_hot=one_hot,
-            trigger_slice=trigger_slice,
-            inputs=inputs,
         )
-        # Add the fluency score to the loss
-        loss += flu_alpha * fluency_score
-    if l2_alpha != 0:
-        # Add the L2 norm of the trigger to the loss (we want to minimize the term)
-        loss += -l2_alpha * trigger_embeds.norm(dim=-1).sum()
+        if i == 0:
+            # Add the fluency penalty in each iteration, if applicable.
+            if flu_alpha != 0 and flu_model is not None:
+                fluency_score = flu_model.calc_score_for_grad(
+                    one_hot=one_hot,
+                    trigger_slice=current_slice,
+                    inputs=inputs,
+                )
+                loss = loss + flu_alpha * fluency_score
 
-    loss.backward()
+            # Add the L2 penalty in each iteration, if applicable.
+            if l2_alpha != 0:
+                loss = loss - l2_alpha * trigger_embeds.norm(dim=-1).sum()
 
-    onehot_grads = one_hot.grad.clone().detach()
-    onehot_grads /= onehot_grads.norm(dim=-1, keepdim=True)  # TODO helps?
+        weighted_loss = loss / (i + 1)
+        # Compute gradient only with respect to one_hot.
+        grad_i = torch.autograd.grad(weighted_loss, one_hot, retain_graph=False)[0]
+        # Pad grad_i with zeros so that its length matches full_trigger_len.
+        if grad_accum is None:
+            grad_accum = grad_i
+        else:
+            pad_len = trigger_len - current_trigger_len
+            pad = torch.zeros(
+                grad_i.shape[0],
+                pad_len,
+                grad_i.shape[2],
+                device=device,
+                dtype=grad_i.dtype,
+            )
+            grad_i = torch.cat([grad_i, pad], dim=1)
+            grad_accum = grad_accum + grad_i
 
+        # Clean up intermediate tensors.
+        del one_hot, trigger_embeds, embeds, full_embeds, loss, weighted_loss, grad_i
+        torch.cuda.empty_cache()
+
+    onehot_grads = grad_accum / grad_accum.norm(dim=-1, keepdim=True)
     return onehot_grads
 
 

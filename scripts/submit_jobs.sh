@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Define arrays of parameters
-concepts=("potter"  "flower" "vaccine" "boston" "golf" "iphone" "mortgage" "sandwich")
-methods=("reguler" "monte_carlo")
-mal_info_lengths=("short" "medium" "long")
-trigger_lens=(10 20 30)
-attack_n_iters=(300)
+# Define arrays of parameters 
+concepts=("flower" "vaccine" "boston" "golf" "iphone" "mortgage" "sandwich") #  "potter" "flower" "vaccine" "boston" "golf" "iphone" "mortgage" "sandwich"
+methods=("avg_loss") # "reguler" "monte_carlo" "avg_loss"
+mal_info_lengths=("short" "medium" "long") # "short" "medium" "long"
+trigger_lens=(10 20 30) # 10 20 30
+attack_n_iters=(30 100 300) # 30 100 300
 
 # Iterate over each combination of parameters
 for concept in "${concepts[@]}"; do

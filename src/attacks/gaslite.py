@@ -694,7 +694,7 @@ def _token_gradients_batch(
             for k, v in kwargs.items()
         }
 
-        with torch.cuda.amp.autocast():  # Use mixed precision for memory efficiency
+        with torch.amp.autocast("cuda"):  # Use mixed precision for memory efficiency
             batch_grads = token_gradients(
                 model=model,
                 input_embedding_layer=input_embedding_layer,
