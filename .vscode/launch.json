@@ -26,6 +26,7 @@
                 "attack.attack_n_iter=3",
                 "attack.beam_search_config.n_flip=500",
                 "++test_chunking=end",
+                "++log_to_wandb=False"
             ],
             "console": "integratedTerminal",
         }

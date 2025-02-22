@@ -116,7 +116,7 @@ def _get_result_path(cfg):
         query_choice += f"___{cfg['cluster_idx']}"
     return os.path.join(
         "results",
-        f"results__{_get_exp_name(cfg)}__{query_choice}_{cfg['test_chunking']}_{cfg['mal_info_length']}_{cfg['chunk_robustness_method']}_{cfg['attack_n_iter']}.json",
+        f"results__{_get_exp_name(cfg)}__{query_choice}_{cfg['test_chunking']}_{cfg['mal_info_length']}_{cfg['chunk_robustness_method']}_{cfg['attack_n_iter']}_{cfg['cover_alg']['concept_name']}_{cfg['trigger_len']}.json",
     )
 
 

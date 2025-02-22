@@ -17,7 +17,7 @@ conda activate gaslite
 
 # Set constant parameters
 DATASET=msmarco-train-concepts
-MODEL=Snowflake/snowflake-arctic-embed-m
+MODEL=Snowflake/snowflake-arctic-embed-m # Snowflake/snowflake-arctic-embed-m | sentence-transformers/all-MiniLM-L6-v2
 SIM_FUNC=cos_sim
 RANDOM_SEED=0
 BATCH_SIZE=2048
