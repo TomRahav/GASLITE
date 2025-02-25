@@ -20,10 +20,10 @@
                 "random_seed=0",
                 "exp_tag=two one three",
                 "cover_alg=concept-test-potter",
-                "++constraints.trigger_len=10",
+                "++constraints.trigger_len=30",
                 "++mal_info_length=medium",
                 "++chunk_robustness_method=avg_loss",
-                "attack.attack_n_iter=3",
+                "attack.attack_n_iter=300",
                 "attack.beam_search_config.n_flip=500",
                 "++test_chunking=end",
                 "++log_to_wandb=False"

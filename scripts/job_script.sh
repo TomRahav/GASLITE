@@ -2,10 +2,9 @@
 #SBATCH --job-name=GASLITE_Attack
 #SBATCH --output=logs/job_%j.txt    # Standard output
 #SBATCH --error=logs/job_%j.txt      # Standard error
-#SBATCH --time=01:00:00                # Time limit hrs:min:sec
 #SBATCH --ntasks=1                     # Number of tasks
 #SBATCH -c 8                      # number of cores (treats)
-#SBATCH --gres=gpu:A40:1          # Request 1 gpu type A40
+#SBATCH --gres=gpu:A40:1
 #SBATCH --mail-user=tom.rahav@campus.technion.ac.il
 #SBATCH --mail-type=NONE                # Send email on all events
 
