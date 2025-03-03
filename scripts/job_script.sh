@@ -4,7 +4,7 @@
 #SBATCH --error=logs/job_%j.txt      # Standard error
 #SBATCH --ntasks=1                     # Number of tasks
 #SBATCH -c 8                      # number of cores (treats)
-#SBATCH --gres=gpu:A40:1
+#SBATCH --gres=gpu:L4:1
 #SBATCH --mail-user=tom.rahav@campus.technion.ac.il
 #SBATCH --mail-type=NONE                # Send email on all events
 
@@ -16,7 +16,6 @@ conda activate gaslite
 
 # Set constant parameters
 DATASET=msmarco-train-concepts
-MODEL=Snowflake/snowflake-arctic-embed-m # Snowflake/snowflake-arctic-embed-m | sentence-transformers/all-MiniLM-L6-v2
 SIM_FUNC=cos_sim
 RANDOM_SEED=0
 BATCH_SIZE=2048

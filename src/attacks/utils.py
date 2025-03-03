@@ -20,12 +20,11 @@ def token_gradients(
     computed in a memory-efficient way using torch.autograd.grad so that only the one_hot
     gradients are kept in memory. The fluency and L2 penalty terms are added in every iteration.
     """
+    method = kwargs.get("chunk_robustness_method", None)
     input_ids = inputs["input_ids"]
     original_stop = trigger_slice.stop
     trigger_len = original_stop - trigger_slice.start
-    iterations = (
-        trigger_len if kwargs.get("chunk_robustness_method", None) == "avg_loss" else 1
-    )
+    iterations = trigger_len if "avg_loss" in method else 1
 
     grad_accum = None  # will accumulate per-iteration gradients
 
@@ -85,6 +84,23 @@ def token_gradients(
         weighted_loss = loss / (i + 1)
         # Compute gradient only with respect to one_hot.
         grad_i = torch.autograd.grad(weighted_loss, one_hot, retain_graph=False)[0]
+        if "onehot_grad" in method:
+            mask = torch.zeros_like(grad_i)
+            mask[:, -1, :] = 1
+            grad_i = grad_i * mask
+        elif "weighted_linearly" in method:
+            # Given L~Uni(1,T), P(L>=j | L>=i and j>=i) = 1 - P(L < j | L>=i and j>=i) =
+            # L*~Uni(i, T) 1 - P(L*<j) = 1 - ((j-i) / (T - (i-1))) = (T - i + 1 - j + i) / (T - (i-1))) = (T - (j-1)) / (T - (i-1))
+            length_plus_one = (
+                torch.ones_like(grad_i) + torch.ones_like(grad_i) * trigger_len
+            )
+            mask = (length_plus_one - torch.ones_like(grad_i) * current_trigger_len) / (
+                length_plus_one
+                - torch.arange(
+                    start=1, end=current_trigger_len + 1, device=grad_i.device
+                ).view(1, current_trigger_len, 1)
+            )
+            grad_i = grad_i * mask
         # Pad grad_i with zeros so that its length matches full_trigger_len.
         if grad_accum is None:
             grad_accum = grad_i

@@ -10,7 +10,7 @@ defaults:
 
 # General config:
 batch_size: 512  # technical parameter, to control the memory usage
-time_limit_in_seconds: 7200  # technical parameter, to control the running time
+time_limit_in_seconds: 43200  # technical parameter, to control the running time
 random_seed: 42
 log_to_wandb: True
 skip_if_cached: True
