@@ -17,7 +17,6 @@ conda activate gaslite
 # Set constant parameters
 DATASET=msmarco-train-concepts
 SIM_FUNC=cos_sim
-RANDOM_SEED=0
 BATCH_SIZE=2048
 
 # Run the Python script with the parameters passed from the environment
@@ -35,5 +34,7 @@ python hydra_entrypoint.py --config-name default \
   ++attack.attack_n_iter=${ATTACK_N_ITER} \
   attack.beam_search_config.n_flip=500 \
   ++test_chunking=end \
+  ++evaluate_attack_flag=False \
+  ++defense_flag=True \
   exp_tag="[exp-test, malinfo-${MAL_INFO_LENGTH}, robustness-${METHOD}, concept-${CONCEPT}, triggerlen-${TRIGGER_LEN}, attack_n_iter-${ATTACK_N_ITER}]"
 

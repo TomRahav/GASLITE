@@ -48,6 +48,52 @@ def run_attack(cfg: DictConfig) -> None:
 
     # Run attack:
     metrics = attack_ret(**cfg)
+    defense_stats = metrics.get("defense_stats", None)
+    if defense_stats:
+        # W&B Logging
+        table1 = wandb.Table(
+            data=defense_stats["self_sim"],
+            columns=[
+                "qid_vector",
+                "qid",
+                "vector",
+                "tokens_removed",
+                "cosine_similarity",
+            ],
+        )
+        wandb.log(
+            {
+                "self_similarity_vs_tokens_removed": wandb.plot.line(
+                    table1,
+                    x="tokens_removed",
+                    y="cosine_similarity",
+                    title="Self Similarity vs Tokens Removed",
+                    stroke="qid_vector",
+                )
+            }
+        )
+
+        table2 = wandb.Table(
+            data=defense_stats["query_sim"],
+            columns=[
+                "qid_vector",
+                "qid",
+                "vector",
+                "tokens_removed",
+                "cosine_similarity",
+            ],
+        )
+        wandb.log(
+            {
+                "query_similarity_vs_tokens_removed": wandb.plot.line(
+                    table2,
+                    x="tokens_removed",
+                    y="cosine_similarity",
+                    title="Query Similarity vs Tokens Removed",
+                    stroke="qid_vector",
+                )
+            }
+        )
     logger.info(metrics)
 
     wandb.log(metrics)
@@ -116,7 +162,7 @@ def _get_result_path(cfg):
         query_choice += f"___{cfg['cluster_idx']}"
     return os.path.join(
         "results",
-        f"results__{_get_exp_name(cfg)}__{query_choice}_{cfg['test_chunking']}_{cfg['mal_info_length']}_{cfg['chunk_robustness_method']}_{cfg['attack_n_iter']}_{cfg['cover_alg']['concept_name']}_{cfg['trigger_len']}.json",
+        f"results__{_get_exp_name(cfg)}__{query_choice}_{cfg['test_chunking']}_{cfg['mal_info_length']}_{cfg['chunk_robustness_method']}_{cfg['attack_n_iter']}_{cfg['cover_alg']['concept_name']}_{cfg['trigger_len']}_defense_{cfg['defense_flag']}.json",
     )
 
 

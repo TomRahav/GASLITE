@@ -3,7 +3,9 @@ import random
 import wandb
 import numpy as np
 from huggingface_hub.utils import EntryNotFoundError
+import torch.nn.functional as F
 
+from src.evaluate.evaluate_beir_online import get_result_list_for_query
 from src.attacks.utils import get_tokenized_sliced_sentence
 from src import data_utils
 from src.attacks.gaslite import gaslite_attack
@@ -53,6 +55,8 @@ def attack_ret(
     dataset_name: str = "scifact",  # dataset to attack
     data_split: str = "train",  # we craft the attack on the training-set
     data_portion=1.0,  # to simulate an attacker's limited access to the data
+    evaluate_attack_flag=True,
+    defense_flag=False,
     **kwargs,
 ):
     # Load model:
@@ -64,7 +68,7 @@ def attack_ret(
     )
 
     # Load dataset:
-    _, _, qrels, qp_pairs_dataset = data_utils.load_dataset(
+    corpus, queries, qrels, qp_pairs_dataset = data_utils.load_dataset(
         dataset_name=dataset_name,
         data_split=data_split,
         data_portion=data_portion,
@@ -246,24 +250,41 @@ def attack_ret(
         test_chunk_dict["test_chunking"] = kwargs["test_chunking"]
         test_chunk_dict["trigger_len"] = trigger_len
     # Evaluate
-    metrics = evaluate_attack(
-        model=model,
-        dataset_name=dataset_name,
-        data_split=data_split,
-        attacked_qids=Qid,
-        qrels=qrels,
-        qid_to_emb=qid_to_emb,
-        adv_text_before_attack=adv_pass_before_attack,
-        adv_text_after_attack=adv_pass_after_attack,
-        adv_tokens_list_after_attack=adv_tokens_list_after_attack,
-        sim_func_name=sim_func_name,
-        model_hf_name=model_hf_name,
-        centroid_vec=centroid_vec,
-        best_flu_instance_text=out_metrics.get("best_flu_instance_text", None),
-        **test_chunk_dict,
-    )
+    metrics = {}
     metrics.update(out_metrics)
+    if evaluate_attack_flag:
+        evaluate_metrics = evaluate_attack(
+            model=model,
+            dataset_name=dataset_name,
+            data_split=data_split,
+            attacked_qids=Qid,
+            qrels=qrels,
+            qid_to_emb=qid_to_emb,
+            adv_text_before_attack=adv_pass_before_attack,
+            adv_text_after_attack=adv_pass_after_attack,
+            adv_tokens_list_after_attack=adv_tokens_list_after_attack,
+            sim_func_name=sim_func_name,
+            model_hf_name=model_hf_name,
+            centroid_vec=centroid_vec,
+            best_flu_instance_text=out_metrics.get("best_flu_instance_text", None),
+            **test_chunk_dict,
+        )
+        metrics.update(evaluate_metrics)
 
+    # Run defense statistics
+    if defense_flag:
+        stats_metrics = defense_statistics(
+            model=model,
+            dataset_name=dataset_name,
+            data_split=data_split,
+            data_portion=data_portion,
+            attacked_qids=Qid,
+            corpus=corpus,
+            queries=queries,
+            adv_text_before_attack=adv_pass_before_attack,
+            adv_text_after_attack=adv_pass_after_attack,
+        )
+        metrics["defense_stats"] = stats_metrics
     return metrics
 
 
@@ -650,7 +671,7 @@ def evaluate_attack(
     for i in range(0, iterations, 1):
         adv_toks_after_attack_pt_input_sliced = {
             "input_ids": get_tokenized_sliced_sentence(
-                adv_toks_after_attack_pt_input, i, loc, iterations
+                adv_toks_after_attack_pt_input, i, loc, 0
             ),
             "attention_mask": adv_toks_after_attack_pt_input["attention_mask"][
                 :, : valid_tokens_number - i
@@ -716,3 +737,107 @@ def _get_best_query_emb(
     best_query_emb = attacked_q_embs[best_query_idx]
 
     return best_query_emb
+
+
+def defense_statistics(
+    model,
+    dataset_name,
+    data_split,
+    data_portion,
+    attacked_qids,
+    corpus,
+    queries,
+    adv_text_before_attack,
+    adv_text_after_attack,
+):
+    for qid in attacked_qids:
+        search_results = get_result_list_for_query(
+            adv_passage_texts=[adv_text_before_attack],
+            query_id=qid,
+            queries=queries,
+            model=model,
+            dataset_name=dataset_name,
+            data_split=data_split,
+            data_portion=data_portion,
+            corpus=corpus,
+            top_k=5,
+        )
+        top_k_true_texts = search_results["top_passages_text"]
+        percentage = 0.5
+        # Inputs
+        all_texts = [queries[qid], adv_text_after_attack, *top_k_true_texts]
+        labels = ["query", "attack"] + [
+            f"true_{i+1}" for i in range(len(top_k_true_texts))
+        ]
+
+        # Tokenize all at once
+        tokenized = model.tokenizer(
+            all_texts, return_tensors="pt", padding=True, truncation=True
+        ).to("cuda")
+
+        # Embed everything once
+        with torch.no_grad():
+            embeddings = model.embed(
+                inputs=tokenized
+            )  # assumed to return [B, D] or [B, T, D] pooled
+        # Store tables
+        self_sim_table_data = []
+        query_sim_table_data = []
+        # Query-to-other similarity
+        query_emb = embeddings[0].unsqueeze(0)  # [1, D]
+        query_emb = F.normalize(query_emb)
+        # Loop through each vector (self-sim)
+        for idx, label in enumerate(labels):
+            full_input = {k: v[idx : idx + 1] for k, v in tokenized.items()}
+            valid_tokens_number = full_input["attention_mask"].sum(dim=1).item()
+            full_emb = embeddings[idx]
+            full_emb = F.normalize(full_emb, dim=0)
+            num_truncate = int(percentage * valid_tokens_number)
+            for i in range(num_truncate):
+                tokenzied_sliced_input = {
+                    # when truncating from end the last variable doesn't matter.
+                    # for start it would let us also cut the actual
+                    "input_ids": get_tokenized_sliced_sentence(
+                        full_input, i, "end", valid_tokens_number
+                    ),
+                    "token_type_ids": full_input.get("token_type_ids", None),
+                    "attention_mask": full_input["attention_mask"],
+                }
+                tokenzied_sliced_input = {
+                    k: v[:, : valid_tokens_number - i]
+                    for k, v in tokenzied_sliced_input.items()
+                    if v is not None
+                }
+                tokenzied_sliced_input = {
+                    k: v.to("cuda") for k, v in tokenzied_sliced_input.items()
+                }
+
+                emb = model.embed(inputs=tokenzied_sliced_input)
+                emb = F.normalize(emb, dim=0)
+
+                cos_sim_full_truncated = F.cosine_similarity(full_emb, emb).item()
+                self_sim_table_data.append(
+                    [
+                        f"{qid}_{label}_and_truncated_{label}",
+                        qid,
+                        f"{label}_and_truncated_{label}",
+                        i,
+                        cos_sim_full_truncated,
+                    ]
+                )
+                if label != "query":
+                    cos_sim_query_truncated = F.cosine_similarity(query_emb, emb).item()
+                    query_sim_table_data.append(
+                        [
+                            f"{qid}_query_and_truncated_{label}",
+                            qid,
+                            f"query_and_truncated_{label}",
+                            i,
+                            cos_sim_query_truncated,
+                        ]
+                    )
+    metrics = {
+        "self_sim": self_sim_table_data,
+        "query_sim": query_sim_table_data,
+    }
+    return metrics

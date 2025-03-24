@@ -52,6 +52,10 @@ def _get_scores_for_adv_passage(
 
     for i in range(0, len(adv_passage_vecs), batch_size):
         adv_passage_vecs_batch = adv_passage_vecs[i : i + batch_size]
+        adv_passage_vecs_batch = torch.nn.functional.normalize(
+            adv_passage_vecs_batch, p=2, dim=-1
+        )
+        q_embs = torch.nn.functional.normalize(q_embs, p=2, dim=-1)
         if sim_func_name == "cos_sim":
             sim_to_adv_batch = F.cosine_similarity(
                 q_embs.unsqueeze(1), adv_passage_vecs_batch.unsqueeze(0), dim=-1
@@ -334,7 +338,16 @@ def get_result_list_for_query(
     if adv_passage_texts is not None:
         adv_p_emb = model.embed(texts=adv_passage_texts)
     elif adv_passage_toks is not None:
-        adv_passage_texts = [model.tokenizer.decode(tok, add_special_tokens=False) for tok in adv_passage_toks]
+
+        adv_passage_texts = [
+            model.tokenizer.decode(
+                tok,
+                add_special_tokens=False,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=True,
+            )
+            for tok in adv_passage_toks
+        ]
         # otherwise, embed the given `adv_passage_toks` and use them as centroids
         # first - prepare `input_ids` and `attention_mask` from the `centroid_real_toks`, then embed them
         max_length = max(
@@ -352,28 +365,34 @@ def get_result_list_for_query(
             input_ids[i, : len(seq)] = torch.tensor(seq, dtype=torch.long)
             attention_mask[i, : len(seq)] = 1
         adv_p_emb = model.embed(
-            inputs=dict(input_ids=input_ids.cuda(), attention_mask=attention_mask.cuda())
+            inputs=dict(
+                input_ids=input_ids.cuda(), attention_mask=attention_mask.cuda()
+            )
         )
-    if model.sim_func_name == "cos_sim":
-        adv_sim_scores = torch.nn.functional.cosine_similarity(query_emb, adv_p_emb)
-    elif model.sim_func_name == "dot":
-        adv_sim_scores = torch.matmul(query_emb, adv_p_emb.t())
-    adv_sim_score = (
-        adv_sim_scores.max().item()
-    )  # we only care about the best passage (when examining a single query)
-    adv_passage_text = adv_passage_texts[adv_sim_scores.argmax().item()]
-
     # Get the top-k passages for the query
     query_results = results[query_id]
+    if adv_passage_texts is None and adv_passage_toks is None:
+        if model.sim_func_name == "cos_sim":
+            adv_sim_scores = torch.nn.functional.cosine_similarity(query_emb, adv_p_emb)
+        elif model.sim_func_name == "dot":
+            adv_sim_scores = torch.matmul(query_emb, adv_p_emb.t())
+        adv_sim_score = (
+            adv_sim_scores.max().item()
+        )  # we only care about the best passage (when examining a single query)
+        adv_passage_text = adv_passage_texts[adv_sim_scores.argmax().item()]
 
-    # calculate what's the rank of the adv passage:
-    adv_rank = sum(1 for score in query_results.values() if score > adv_sim_score)
-    adv_rank = math.inf if adv_rank == len(query_results) else adv_rank + 1
+        # calculate what's the rank of the adv passage:
+        adv_rank = sum(1 for score in query_results.values() if score > adv_sim_score)
+        adv_rank = math.inf if adv_rank == len(query_results) else adv_rank + 1
 
-    # list top-k passages, including the adv-passage
-    query_results["__adv__"] = (
-        adv_sim_score  # include the adversarial passage in results
-    )
+        # list top-k passages, including the adv-passage
+        query_results["__adv__"] = (
+            adv_sim_score  # include the adversarial passage in results
+        )
+    else:
+        adv_sim_score = 0
+        adv_rank = float("inf")
+
     top_passages = sorted(query_results.items(), key=lambda x: x[1], reverse=True)[
         :top_k
     ]

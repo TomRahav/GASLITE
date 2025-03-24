@@ -18,15 +18,17 @@
                 "core_objective=single-query",
                 "batch_size=2048",
                 "random_seed=0",
-                "exp_tag=two one three",
+                "exp_tag=four two one three",
                 "cover_alg=concept-test-potter",
-                "++constraints.trigger_len=10",
+                "++constraints.trigger_len=30",
                 "++mal_info_length=medium",
                 "++chunk_robustness_method=avg_loss_weighted_linearly",
                 "attack.attack_n_iter=10",
                 "attack.beam_search_config.n_flip=500",
                 "++test_chunking=end",
-                "++log_to_wandb=False"
+                // "++log_to_wandb=False",
+                "++evaluate_attack_flag=False",
+                "++defense_flag=True"
             ],
             "console": "integratedTerminal",
         }
