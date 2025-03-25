@@ -57,6 +57,7 @@ def attack_ret(
     data_portion=1.0,  # to simulate an attacker's limited access to the data
     evaluate_attack_flag=True,
     defense_flag=False,
+    truncation_loc="end",
     **kwargs,
 ):
     # Load model:
@@ -283,6 +284,7 @@ def attack_ret(
             queries=queries,
             adv_text_before_attack=adv_pass_before_attack,
             adv_text_after_attack=adv_pass_after_attack,
+            truncation_loc=truncation_loc,
         )
         metrics["defense_stats"] = stats_metrics
     return metrics
@@ -749,6 +751,7 @@ def defense_statistics(
     queries,
     adv_text_before_attack,
     adv_text_after_attack,
+    truncation_loc,
 ):
     for qid in attacked_qids:
         search_results = get_result_list_for_query(
@@ -798,7 +801,7 @@ def defense_statistics(
                     # when truncating from end the last variable doesn't matter.
                     # for start it would let us also cut the actual
                     "input_ids": get_tokenized_sliced_sentence(
-                        full_input, i, "end", valid_tokens_number
+                        full_input, i, truncation_loc, valid_tokens_number
                     ),
                     "token_type_ids": full_input.get("token_type_ids", None),
                     "attention_mask": full_input["attention_mask"],

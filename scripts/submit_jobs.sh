@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Define arrays of parameters 
-models=("Snowflake/snowflake-arctic-embed-m") # "Snowflake/snowflake-arctic-embed-m" "sentence-transformers/all-MiniLM-L6-v2" "intfloat/e5-base-v2"
+models=("Snowflake/snowflake-arctic-embed-m" "sentence-transformers/all-MiniLM-L6-v2" "intfloat/e5-base-v2") # "Snowflake/snowflake-arctic-embed-m" "sentence-transformers/all-MiniLM-L6-v2" "intfloat/e5-base-v2"
 concepts=("potter" "flower" "vaccine" "boston" "golf" "iphone" "mortgage" "sandwich") #  "potter" "flower" "vaccine" "boston" "golf" "iphone" "mortgage" "sandwich"
 methods=("reguler") # "reguler" "monte_carlo" "avg_loss" "avg_loss_onehot_grad" "avg_loss_weighted_linearly"
-mal_info_lengths=("long") # "short" "medium" "long"
-trigger_lens=(30) # 10 20 30
+mal_info_lengths=("short" "medium" "long") # "short" "medium" "long"
+trigger_lens=(10 20 30) # 10 20 30
 attack_n_iters=(100) # 30 100 300
 
 index=0  # Initialize counter
