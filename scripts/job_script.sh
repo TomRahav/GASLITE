@@ -36,6 +36,6 @@ python hydra_entrypoint.py --config-name default \
   ++test_chunking=end \
   ++evaluate_attack_flag=False \
   ++defense_flag=True \
-  ++truncation_loc=end \
+  ++truncation_loc=start \
   exp_tag="[exp-test, malinfo-${MAL_INFO_LENGTH}, robustness-${METHOD}, concept-${CONCEPT}, triggerlen-${TRIGGER_LEN}, attack_n_iter-${ATTACK_N_ITER}]"
 
